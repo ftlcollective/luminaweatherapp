@@ -67,21 +67,48 @@ let state = {
 };
 
 // ---------- Small helpers ----------
-function formatDate(date) {
-  let days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  let day = days[date.getDay()];
-  let hours = String(date.getHours()).padStart(2, "0");
-  let minutes = String(date.getMinutes()).padStart(2, "0");
+// Weekday + time for a place, e.g. "Tuesday 18:42".
+// The timeZone option makes the browser show that place's clock, not yours.
+function formatPlaceTime(date, timeZone) {
+  let options = timeZone ? { timeZone: timeZone } : {};
+  let weekday = date.toLocaleDateString("en-GB", { ...options, weekday: "long" });
+  let time = date.toLocaleTimeString("en-GB", {
+    ...options,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
 
-  return `${day} ${hours}:${minutes}`;
+  return `${weekday} ${time}`;
+}
+
+// Turn a city's coordinates into its timezone name, e.g. "Australia/Sydney"
+function getTimeZone(coordinates) {
+  try {
+    if (!coordinates || typeof tzlookup !== "function") return null;
+    return tzlookup(coordinates.latitude, coordinates.longitude);
+  } catch (error) {
+    return null;
+  }
+}
+
+// A live clock for the city on screen. It ticks while you look at the page.
+let clockTimer = null;
+
+function startClock(timeZone, observedAt) {
+  clearInterval(clockTimer);
+
+  function showTime() {
+    if (timeZone) {
+      timeElement.textContent = `${formatPlaceTime(new Date(), timeZone)} · local time`;
+    } else {
+      // We couldn't work out the city's timezone, so say plainly whose clock this is
+      timeElement.textContent = `Updated ${formatPlaceTime(observedAt)} · your time`;
+    }
+  }
+
+  showTime();
+  if (timeZone) clockTimer = setInterval(showTime, 10000);
 }
 
 // The API sends an icon name like "rain-night". We turn it into a mood
@@ -126,13 +153,13 @@ function hideBrokenImage(image) {
 hideBrokenImage(iconElement);
 
 // ---------- Current weather ----------
-function showCurrent(response) {
+function showCurrent(response, coordinates) {
   let data = response.data;
   let temperature = Math.round(data.temperature.current);
   let unit = UNITS[state.units];
 
   cityElement.textContent = data.city;
-  timeElement.textContent = `Updated ${formatDate(new Date(data.time * 1000))}`;
+  startClock(getTimeZone(coordinates), new Date(data.time * 1000));
   descriptionElement.textContent = data.condition.description;
   temperatureElement.textContent = temperature;
   temperatureUnitElement.textContent = unit.temp;
@@ -314,7 +341,14 @@ function loadWeather(place) {
       }
 
       state.place = place;
-      showCurrent(current.value);
+
+      // Coordinates tell us the city's timezone
+      let coordinates =
+        forecast.status === "fulfilled" && forecast.value.data.coordinates
+          ? forecast.value.data.coordinates
+          : current.value.data.coordinates;
+
+      showCurrent(current.value, coordinates);
       rememberCity(current.value.data.city);
 
       if (forecast.status === "fulfilled") {
