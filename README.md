@@ -5,6 +5,7 @@ A dreamy, futuristic weather app built with HTML, CSS and JavaScript, powered by
 ## Features
 
 - Search any city
+- Live local time for the city you searched (not your own clock)
 - Live temperature, weather description and weather icon
 - Wind speed, humidity and "feels like" (when the API provides it)
 - 7-day forecast with icons, highs, lows, descriptions and wind
@@ -32,5 +33,7 @@ Open `index.html` in your browser. No install or build step needed.
 4. Deploy
 
 ## Credits
+
+The city's timezone is worked out from its coordinates with [tz-lookup](https://github.com/photostructure/tz-lookup) (public domain), included in `src/tz-lookup.js`.
 
 Based on the SheCodes Meteo starter. Restyled and extended by [ftlcollective](https://github.com/ftlcollective).
